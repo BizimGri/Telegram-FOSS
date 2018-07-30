@@ -21,6 +21,7 @@ import android.database.Cursor;
 import android.graphics.Point;
 import android.graphics.Shader;
 import android.graphics.drawable.BitmapDrawable;
+import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -102,11 +103,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class LaunchActivity extends Activity implements ActionBarLayout.ActionBarLayoutDelegate, NotificationCenter.NotificationCenterDelegate, DialogsActivity.DialogsActivityDelegate {
 
     private boolean finished;
     private String videoPath;
+
+    final private Pattern r = Pattern.compile("geo: ?(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)(,|\\?z=)(-?\\d+)");
+    private Location sendingLocation;
+
     private String sendingText;
     private ArrayList<SendMessagesHelper.SendingMediaInfo> photoPathsArray;
     private ArrayList<String> documentsPathsArray;
@@ -883,6 +890,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
             photoPathsArray = null;
             videoPath = null;
             sendingText = null;
+            sendingLocation = null;
             documentsPathsArray = null;
             documentsOriginalPathsArray = null;
             documentsMimeType = null;
@@ -919,7 +927,12 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                             String subject = intent.getStringExtra(Intent.EXTRA_SUBJECT);
 
                             if (text != null && text.length() != 0) {
-                                if ((text.startsWith("http://") || text.startsWith("https://")) && subject != null && subject.length() != 0) {
+                                Matcher m = r.matcher(text);
+                                if (m.find()) {
+                                    sendingLocation = new Location("");
+                                    sendingLocation.setLatitude(Double.parseDouble(m.group(1)));
+                                    sendingLocation.setLongitude(Double.parseDouble(m.group(2)));
+                                } else if ((text.startsWith("http://") || text.startsWith("https://")) && subject != null && subject.length() != 0) {
                                     text = subject + "\n" + text;
                                 }
                                 sendingText = text;
@@ -972,7 +985,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                                         }
                                     }
                                 }
-                            } else if (sendingText == null) {
+                            } else if (sendingText == null && sendingLocation == null) {
                                 error = true;
                             }
                         }
@@ -1373,7 +1386,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                     }));
                 }
                 pushOpened = false;
-            } else if (videoPath != null || photoPathsArray != null || sendingText != null || documentsPathsArray != null || contactsToSend != null || documentsUrisArray != null) {
+            } else if (videoPath != null || photoPathsArray != null || sendingText != null || sendingLocation != null || documentsPathsArray != null || contactsToSend != null || documentsUrisArray != null) {
                 if (!AndroidUtilities.isTablet()) {
                     NotificationCenter.getInstance(intentAccount[0]).postNotificationName(NotificationCenter.closeChats);
                 }
@@ -2087,7 +2100,9 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
             if (sendingText != null) {
                 SendMessagesHelper.prepareSendingText(sendingText, did);
             }
-
+            if (sendingLocation != null) {
+                SendMessagesHelper.prepareSendingLocation(sendingLocation, did);
+            }
             if (documentsPathsArray != null || documentsUrisArray != null) {
                 SendMessagesHelper.prepareSendingDocuments(documentsPathsArray, documentsOriginalPathsArray, documentsUrisArray, documentsMimeType, did, null, null, null);
             }
@@ -2102,6 +2117,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
         photoPathsArray = null;
         videoPath = null;
         sendingText = null;
+        sendingLocation = null;
         documentsPathsArray = null;
         documentsOriginalPathsArray = null;
         contactsToSend = null;

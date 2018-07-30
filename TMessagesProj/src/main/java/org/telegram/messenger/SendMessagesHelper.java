@@ -4518,6 +4518,31 @@ public class SendMessagesHelper implements NotificationCenter.NotificationCenter
     }
 
     @UiThread
+    public static void prepareSendingLocation(final Location location, final long dialog_id) {
+        final int currentAccount = UserConfig.selectedAccount;
+        MessagesStorage.getInstance(currentAccount).getStorageQueue().postRunnable(new Runnable() {
+            @Override
+            public void run() {
+                Utilities.stageQueue.postRunnable(new Runnable() {
+                    @Override
+                    public void run() {
+                        AndroidUtilities.runOnUIThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                TLRPC.TL_messageMediaGeo mediaGeo = new TLRPC.TL_messageMediaGeo();
+                                mediaGeo.geo = new TLRPC.TL_geoPoint();
+                                mediaGeo.geo.lat = location.getLatitude();
+                                mediaGeo.geo._long = location.getLongitude();
+                                SendMessagesHelper.getInstance(currentAccount).sendMessage(mediaGeo, dialog_id, null, null, null);
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    @UiThread
     public static void prepareSendingPhoto(String imageFilePath, Uri imageUri, long dialog_id, MessageObject reply_to_msg, CharSequence caption, ArrayList<TLRPC.MessageEntity> entities, ArrayList<TLRPC.InputDocument> stickers, InputContentInfoCompat inputContent, int ttl, MessageObject editingMessageObject) {
         SendingMediaInfo info = new SendingMediaInfo();
         info.path = imageFilePath;
